@@ -19,6 +19,8 @@ import {
   ExternalLink,
   GitBranch,
   Circle,
+  Menu,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,6 +137,8 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
     vercelUrl: "",
   });
   const [taskEditForm, setTaskEditForm] = useState<Partial<Task>>({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedColumn, setSelectedColumn] = useState<string>("backlog");
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -293,10 +297,22 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
       {/* Ambient glow */}
       <div className="ambient-glow" />
 
-      {/* Sidebar */}
-      <aside className="relative z-10 w-64 border-r border-border bg-sidebar flex flex-col shrink-0">
+      {/* Mobile sidebar overlay backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - hidden on mobile, overlay drawer when open */}
+      <aside
+        className={`fixed md:relative z-50 md:z-10 w-64 h-full border-r border-border bg-sidebar flex flex-col shrink-0 transition-transform duration-300 ease-in-out ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+      >
         {/* Brand */}
-        <div className="p-5 border-b border-border">
+        <div className="p-5 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <LayoutGrid className="w-4 h-4 text-primary" />
@@ -308,6 +324,12 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
               <p className="font-meta text-text-muted">command center</p>
             </div>
           </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden p-1.5 rounded-md hover:bg-accent text-text-muted hover:text-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Stats bar */}
@@ -346,7 +368,7 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
           </div>
 
           <button
-            onClick={() => setSelectedProjectId(null)}
+            onClick={() => { setSelectedProjectId(null); setSidebarOpen(false); }}
             className={`w-full flex items-center gap-3 px-5 py-2 text-sm transition-all duration-150 ${
               selectedProjectId === null
                 ? "sidebar-active text-foreground bg-accent/50"
@@ -372,7 +394,7 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
                     ? "sidebar-active text-foreground bg-accent/50"
                     : "text-text-secondary hover:text-foreground hover:bg-accent/30"
                 }`}
-                onClick={() => setSelectedProjectId(project.id)}
+                onClick={() => { setSelectedProjectId(project.id); setSidebarOpen(false); }}
               >
                 <span
                   className="w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-background"
@@ -425,18 +447,26 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
       {/* Main Board */}
       <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="px-6 py-4 border-b border-border flex items-center justify-between bg-background/80 backdrop-blur-sm">
-          <div className="flex items-center gap-3">
+        <header className="px-4 md:px-6 py-3 md:py-4 border-b border-border flex items-center justify-between bg-background/80 backdrop-blur-sm">
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Hamburger - mobile only */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden p-1.5 rounded-md hover:bg-accent text-text-muted hover:text-foreground transition-colors"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
             {selectedProjectId ? (
               <>
                 <span
-                  className="w-3 h-3 rounded-full"
+                  className="w-3 h-3 rounded-full hidden md:inline"
                   style={{
                     backgroundColor:
                       getProject(selectedProjectId)?.color || "#818cf8",
                   }}
                 />
-                <h2 className="text-base font-semibold tracking-tight">
+                <h2 className="text-sm md:text-base font-semibold tracking-tight truncate">
                   {getProject(selectedProjectId)?.name}
                 </h2>
                 {getProject(selectedProjectId)?.description && (
@@ -447,7 +477,7 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
               </>
             ) : (
               <>
-                <h2 className="text-base font-semibold tracking-tight">All Projects</h2>
+                <h2 className="text-sm md:text-base font-semibold tracking-tight">All Projects</h2>
                 <span className="text-sm text-text-muted hidden md:inline">
                   — overview across all projects
                 </span>
@@ -461,9 +491,203 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
           </div>
         </header>
 
+        {/* Mobile Column Tabs */}
+        <div className="md:hidden flex overflow-x-auto border-b border-border bg-background/80 backdrop-blur-sm scrollbar-hide">
+          {COLUMNS.map((column) => {
+            const config = COLUMN_CONFIG[column];
+            const colTasks = getColumnTasks(column);
+            const isActive = selectedColumn === column;
+            return (
+              <button
+                key={column}
+                onClick={() => setSelectedColumn(column)}
+                className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-all duration-150 shrink-0 ${
+                  isActive
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-text-muted hover:text-text-secondary"
+                }`}
+              >
+                <span className={`column-dot ${config.dotColor}`} />
+                <span>{COLUMN_LABELS[column]}</span>
+                <span className={`font-meta text-[10px] px-1.5 py-0.5 rounded-md ${
+                  isActive ? "bg-primary/20 text-primary" : "bg-ink-mid text-text-muted"
+                }`}>
+                  {colTasks.length}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Columns */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden p-5">
-          <div className="flex gap-4 h-full min-w-max">
+        <div className="flex-1 overflow-y-auto md:overflow-x-auto md:overflow-y-hidden p-3 md:p-5">
+          {/* Mobile: single column view */}
+          <div className="md:hidden space-y-2 pb-4">
+            {/* Mobile Add Task Button */}
+            <button
+              onClick={() => setAddTaskColumn(selectedColumn)}
+              className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-border-subtle text-text-muted hover:text-foreground hover:border-border transition-colors text-sm w-full"
+            >
+              <Plus className="w-4 h-4" />
+              Add task to {COLUMN_LABELS[selectedColumn]}
+            </button>
+
+            {/* Mobile Add Task Inline */}
+            <AnimatePresence>
+              {addTaskColumn === selectedColumn && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="p-3 space-y-2 bg-surface rounded-xl border border-border-subtle">
+                    <Input
+                      placeholder="Task title..."
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleAddTask(selectedColumn);
+                        if (e.key === "Escape") setAddTaskColumn(null);
+                      }}
+                      autoFocus
+                      className="bg-ink-mid border-border-subtle text-sm h-9 placeholder:text-text-muted"
+                    />
+                    <div className="flex gap-1.5">
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs bg-primary/90 hover:bg-primary"
+                        onClick={() => handleAddTask(selectedColumn)}
+                        disabled={!newTaskTitle.trim()}
+                      >
+                        Add
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs text-text-muted hover:text-foreground"
+                        onClick={() => {
+                          setAddTaskColumn(null);
+                          setNewTaskTitle("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Mobile Task Cards - full width */}
+            {getColumnTasks(selectedColumn).length === 0 ? (
+              <div className="h-24 flex items-center justify-center rounded-xl border border-dashed border-border-subtle bg-surface">
+                <p className="font-meta text-text-muted">no tasks</p>
+              </div>
+            ) : (
+              <AnimatePresence mode="popLayout">
+                {getColumnTasks(selectedColumn).map((task) => {
+                  const project = getProject(task.projectId);
+                  const config = COLUMN_CONFIG[selectedColumn];
+                  return (
+                    <motion.div
+                      key={task.id}
+                      layout
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.96 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="card-lift priority-stripe bg-surface-raised border border-border-subtle rounded-xl px-4 py-3.5 cursor-pointer"
+                      data-priority={task.priority || "medium"}
+                      onClick={() => {
+                        setExpandedTask(task.id);
+                        setTaskEditForm(task);
+                      }}
+                    >
+                      {/* Project indicator */}
+                      {selectedProjectId === null && project && (
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: project.color }}
+                          />
+                          <span className="font-meta text-xs text-text-muted">
+                            {project.name}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Title */}
+                      <p className="text-sm font-medium text-text-primary leading-snug mb-2.5">
+                        {task.title}
+                      </p>
+
+                      {/* Meta row */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {task.priority && (
+                          <span className="font-meta text-[11px] px-2 py-0.5 rounded bg-ink-mid text-text-muted border border-border-subtle">
+                            {PRIORITY_LABELS[task.priority] || task.priority.toUpperCase()}
+                          </span>
+                        )}
+                        {task.storyPoints != null && (
+                          <span className="flex items-center gap-0.5 font-meta text-[11px] text-text-muted">
+                            <Zap className="w-3 h-3" />
+                            {task.storyPoints}sp
+                          </span>
+                        )}
+                        {task.assignee && (
+                          <span className="flex items-center gap-0.5 font-meta text-[11px] text-text-muted">
+                            <User className="w-3 h-3" />
+                            {task.assignee}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Tags */}
+                      {task.tags && task.tags.length > 0 && (
+                        <div className="flex gap-1.5 mt-2.5 flex-wrap">
+                          {task.tags.map((tag, i) => (
+                            <span
+                              key={i}
+                              className="font-meta text-[11px] px-2 py-0.5 rounded-md bg-ink-mid/60 text-text-muted"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Move button */}
+                      {selectedColumn !== "done" && (
+                        <div className="mt-2.5">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const nextIdx =
+                                COLUMNS.indexOf(
+                                  selectedColumn as typeof COLUMNS[number]
+                                ) + 1;
+                              if (nextIdx < COLUMNS.length) {
+                                handleMoveTask(task.id, COLUMNS[nextIdx]);
+                              }
+                            }}
+                            className="flex items-center gap-1 font-meta text-xs text-text-muted hover:text-primary transition-colors"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                            → {getNextColumnLabel(selectedColumn)}
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            )}
+          </div>
+
+          {/* Desktop: all columns side by side */}
+          <div className="hidden md:flex gap-4 h-full min-w-max">
             {COLUMNS.map((column) => {
               const colTasks = getColumnTasks(column);
               const config = COLUMN_CONFIG[column];

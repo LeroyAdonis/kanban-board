@@ -171,6 +171,16 @@
   background: #3a4160;
 }
 
+/* Hide scrollbar but keep scrolling */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Noise texture overlay */
 .noise-overlay::before {
   content: "";
